@@ -1,3 +1,121 @@
+<?php
+session_start(); // Start the session at the beginning
+
+$servername = "localhost";
+$username = "yaseen";
+$password = "Yaseen@123";
+$dbname = "own_cart";
+
+// Create connection
+$conn = new mysqli($servername, $username, $password, $dbname);
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+function sanitizeInput($data) {
+    return htmlspecialchars(trim($data));
+}
+
+$fullName = $email = $password = $confirmPassword = "";
+$loginEmail = $loginPassword = "";
+$errors = [];
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    if (isset($_POST["register"])) {
+        $fullName = sanitizeInput($_POST["fullName"]);
+        $email = sanitizeInput($_POST["email"]);
+        $password = sanitizeInput($_POST["password"]);
+        $confirmPassword = sanitizeInput($_POST["confirmPassword"]);
+
+        // Validate Full Name
+        if (empty($fullName) || !preg_match("/^[a-zA-Z\s]+$/", $fullName)) {
+            $errors['fullName'] = "Full Name is required and must contain only letters and spaces.";
+        }
+
+        // Validate Email
+        if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $errors['email'] = "A valid Email Address is required.";
+        } else {
+            // Check if email is already registered
+            $stmt = $conn->prepare("SELECT id FROM users WHERE email=?");
+            $stmt->bind_param("s", $email);
+            $stmt->execute();
+            $stmt->store_result();
+            if ($stmt->num_rows > 0) {
+                $errors['email'] = "This email is already registered.";
+            }
+            $stmt->close();
+        }
+
+        // Validate Password
+        if (strlen($password) < 8) {
+            $errors['password'] = "Password is required and must be at least 8 characters long.";
+        }
+
+        // Validate Confirm Password
+        if ($password !== $confirmPassword) {
+            $errors['confirmPassword'] = "Passwords do not match.";
+        }
+
+        // If no errors, proceed with registration
+        if (empty($errors)) {
+            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+            $stmt = $conn->prepare("INSERT INTO users (full_name, email, password) VALUES (?, ?, ?)");
+            $stmt->bind_param("sss", $fullName, $email, $hashedPassword);
+
+            if ($stmt->execute()) {
+                echo "<script>alert('Registration successful! Welcome to Docme Cart, $fullName.'); window.location.href = 'task5.1.php';</script>";
+            } else {
+                $errors['general'] = "An error occurred while registering. Please try again.";
+            }
+            $stmt->close();
+        }
+    } elseif (isset($_POST["login"])) {
+        $loginEmail = sanitizeInput($_POST["loginEmail"]);
+        $loginPassword = sanitizeInput($_POST["loginPassword"]);
+
+        // Validate Login Email
+        if (empty($loginEmail) || !filter_var($loginEmail, FILTER_VALIDATE_EMAIL)) {
+            $errors['loginEmail'] = "A valid Email Address is required.";
+        } else {
+            // Check if email is registered
+            $stmt = $conn->prepare("SELECT id, password, is_admin FROM users WHERE email=?");
+            $stmt->bind_param("s", $loginEmail);
+            $stmt->execute();
+            $stmt->store_result();
+            if ($stmt->num_rows == 0) {
+                $errors['loginEmail'] = "Email not registered.";
+            } else {
+                $stmt->bind_result($userId, $storedPassword, $isAdmin);
+                $stmt->fetch();
+                // Validate Login Password
+                if (!password_verify($loginPassword, $storedPassword)) {
+                    $errors['loginPassword'] = "Incorrect password.";
+                } else {
+                    // Successful login
+                    $_SESSION['user_email'] = $loginEmail; // Store email in session
+                    $_SESSION['is_admin'] = $isAdmin; // Store admin status in session
+
+                    $redirectUrl = $isAdmin ? 'task5.php' : 'task5.1.php';
+
+                    // Use PHP header for redirection
+                    header("Location: $redirectUrl");
+                    exit(); // Always call exit after header redirection
+                }
+            }
+            $stmt->close();
+        }
+    }
+} elseif (isset($_GET['logout'])) {
+    // Handle logout
+    session_unset(); // Remove all session variables
+    session_destroy(); // Destroy the session
+    header("Location: task7.php"); // Redirect to login or homepage
+    exit();
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -135,124 +253,6 @@
 </head>
 <body>
 
-<?php
-$servername = "localhost";
-$username = "yaseen";
-$password = "Yaseen@123";
-$dbname = "own_cart";
-
-// Create connection
-$conn = new mysqli($servername, $username, $password, $dbname);
-
-// Check connection
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
-}
-
-function sanitizeInput($data) {
-    return htmlspecialchars(trim($data));
-}
-
-$fullName = $email = $password = $confirmPassword = "";
-$loginEmail = $loginPassword = "";
-$errors = [];
-
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    if (isset($_POST["register"])) {
-        $fullName = sanitizeInput($_POST["fullName"]);
-        $email = sanitizeInput($_POST["email"]);
-        $password = sanitizeInput($_POST["password"]);
-        $confirmPassword = sanitizeInput($_POST["confirmPassword"]);
-
-        // Validate Full Name
-        if (empty($fullName) || !preg_match("/^[a-zA-Z\s]+$/", $fullName)) {
-            $errors['fullName'] = "Full Name is required and must contain only letters and spaces.";
-        }
-
-        // Validate Email
-        if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $errors['email'] = "A valid Email Address is required.";
-        } else {
-            // Check if email is already registered
-            $stmt = $conn->prepare("SELECT id FROM users WHERE email=?");
-            $stmt->bind_param("s", $email);
-            $stmt->execute();
-            $stmt->store_result();
-            if ($stmt->num_rows > 0) {
-                $errors['email'] = "This email is already registered.";
-            }
-            $stmt->close();
-        }
-
-        // Validate Password
-        if (strlen($password) < 8) {
-            $errors['password'] = "Password is required and must be at least 8 characters long.";
-        }
-
-        // Validate Confirm Password
-        if ($password !== $confirmPassword) {
-            $errors['confirmPassword'] = "Passwords do not match.";
-        }
-
-        // If no errors, proceed with registration
-        if (empty($errors)) {
-            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-            $stmt = $conn->prepare("INSERT INTO users (full_name, email, password) VALUES (?, ?, ?)");
-            $stmt->bind_param("sss", $fullName, $email, $hashedPassword);
-
-            if ($stmt->execute()) {
-                echo "<script>
-                    $(document).ready(function() {
-                        alert('Registration successful! Welcome to Docme Cart, $fullName.');
-                        window.location.href = 'task5.1.php';
-                    });
-                </script>";
-            } else {
-                $errors['general'] = "An error occurred while registering. Please try again.";
-            }
-            $stmt->close();
-        }
-    } elseif (isset($_POST["login"])) {
-        $loginEmail = sanitizeInput($_POST["loginEmail"]);
-        $loginPassword = sanitizeInput($_POST["loginPassword"]);
-
-        // Validate Login Email
-        if (empty($loginEmail) || !filter_var($loginEmail, FILTER_VALIDATE_EMAIL)) {
-            $errors['loginEmail'] = "A valid Email Address is required.";
-        } else {
-            // Check if email is registered
-            $stmt = $conn->prepare("SELECT password, is_admin FROM users WHERE email=?");
-            $stmt->bind_param("s", $loginEmail);
-            $stmt->execute();
-            $stmt->store_result();
-            if ($stmt->num_rows == 0) {
-                $errors['loginEmail'] = "Email not registered.";
-            } else {
-                $stmt->bind_result($storedPassword, $isAdmin);
-                $stmt->fetch();
-                // Validate Login Password
-                if (!password_verify($loginPassword, $storedPassword)) {
-                    $errors['loginPassword'] = "Incorrect password.";
-                } else {
-                    // Successful login
-                    session_start();
-                    $_SESSION['user_email'] = $loginEmail;
-                    $_SESSION['is_admin'] = $isAdmin;
-
-                    $redirectUrl = $isAdmin ? 'task5.php' : 'task5.1.php';
-
-                    echo "<script>
-                        $(document).ready(function() {
-                            alert('Login successful! Welcome back to Docme Cart.');
-                            window.location.href = '$redirectUrl';
-                        });
-                    </script>";                }
-            }
-            $stmt->close();
-        }
-    }
-}
-?>
 
 <div class="container">
     <div class="header">
