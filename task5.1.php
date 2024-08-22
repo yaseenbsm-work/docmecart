@@ -389,6 +389,7 @@ footer a:hover {
     color: #004d40; /* Dark green color */
 }
 
+        
     </style>
 
 </head>
@@ -476,6 +477,7 @@ footer a:hover {
         </div>
     </div>
 </div>
+<?php include 'popup.php'; ?>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
@@ -485,7 +487,16 @@ $(document).ready(function() {
     let sortOrder = 'price-asc';
     let searchQuery = '';
     let cart = [];
-
+    $('#welcome-popup').show();
+    $('.close-popup').on('click', function() {
+            $('#welcome-popup').hide();
+        });
+        $(window).on('click', function(event) {
+            if ($(event.target).is('#welcome-popup')) {
+                $('#welcome-popup').hide();
+            }
+        });
+        
 function fetchMobiles(page = 1) {
     $.ajax({
         url: 'fetch_mobiles.php',
