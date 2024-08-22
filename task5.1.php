@@ -1,3 +1,35 @@
+<?php
+session_start(); // Start the session
+
+// Check if user is logged in
+if (!isset($_SESSION['user_email']) || isset($_SESSION['is_admin']) && $_SESSION['is_admin']) {
+    header("Location: task7.php"); // Redirect to login if not logged in or is an admin
+    exit();
+}
+
+// Database connection
+$servername = "localhost";
+$username = "yaseen";
+$password = "Yaseen@123";
+$dbname = "own_cart";
+
+$conn = new mysqli($servername, $username, $password, $dbname);
+
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Fetch user information
+$email = $_SESSION['user_email'];
+$stmt = $conn->prepare("SELECT full_name FROM users WHERE email=?");
+$stmt->bind_param("s", $email);
+$stmt->execute();
+$stmt->bind_result($fullName);
+$stmt->fetch();
+$stmt->close();
+
+$conn->close();
+?>
 
 <!DOCTYPE html>
 <html lang="en">
@@ -382,8 +414,8 @@ footer a:hover {
 
         <div id="mobiles-list"></div>
         <footer>
-<a href="task7.php">LOGOUT</a>
-</footer>   
+    <a href="logout.php">LOGOUT</a>
+</footer>
 
         <div class="pagination">
             <button id="prev-btn" disabled>Previous</button>
